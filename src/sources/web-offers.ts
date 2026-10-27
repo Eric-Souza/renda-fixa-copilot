@@ -7,7 +7,7 @@
 // would send every page again, far past the free tier's 8,000 tokens a minute.
 
 import { z } from 'zod'
-import { DEFAULT_SEARCH_MODEL } from '../lib/model'
+import { DEFAULT_SEARCH_MODEL, FALLBACK_SEARCH_MODELS } from '../lib/model'
 import { INDEXERS, type Indexer, type Offer, platformFor, type Product } from '../lib/offer'
 import { SourceError } from './http'
 
@@ -24,6 +24,7 @@ export interface WebSearch {
   /** The model's final answer, which should hold the offers as JSON */
   answer: string
   pages: WebPage[]
+  model?: string
 }
 
 const extractedSchema = z.object({
@@ -49,7 +50,7 @@ export function searchPrompt(today: Date): string {
   return [
     `Hoje é ${day}. Pesquise na web as ofertas de CDB, LCI e LCA com as maiores taxas disponíveis hoje ou em ${month} ` +
       'em bancos e corretoras brasileiras: pós-fixadas (% do CDI), prefixadas e IPCA+. Bons pontos de partida são ' +
-      'rankings diários (Meelion, Investidor10, Yubb) e as colunas "Renda Fixa Hoje" (InfoMoney). Abra as páginas para ler as ofertas.',
+      'rankings diários (Meelion, Investidor10, Yubb) e as colunas "Renda Fixa Hoje" (InfoMoney). Abra no máximo 4 páginas, as que listam mais ofertas.',
     '',
     'Responda só com um array JSON, sem texto antes ou depois, com até 25 ofertas específicas que aparecem nas páginas que você abriu:',
     '[{"product":"CDB|LCI|LCA|LC|RDB","issuer":"banco emissor","indexer":"CDI|CDI+|PRE|IPCA+",' +
@@ -131,15 +132,16 @@ export function parseAnswer(answer: string): { offers: ExtractedOffer[]; invalid
   return { offers, invalid: items.length - offers.length }
 }
 
-export async function searchWeb(today: Date, env: Record<string, string | undefined> = process.env): Promise<WebSearch> {
-  if (!env.GROQ_API_KEY) throw new SourceError('Web search', 'GROQ_API_KEY is not set')
+class RateLimited extends SourceError {}
+
+async function searchWith(model: string, today: Date, key: string): Promise<WebSearch> {
   let res: Response
   try {
     res = await fetch(GROQ_CHAT, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY}` },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: env.SEARCH_MODEL || DEFAULT_SEARCH_MODEL,
+        model,
         messages: [{ role: 'user', content: searchPrompt(today) }],
         tools: [{ type: 'browser_search' }],
       }),
@@ -152,12 +154,30 @@ export async function searchWeb(today: Date, env: Record<string, string | undefi
   if (res.status === 429) {
     // Groq says which limit (tokens a minute or a day) and when it resets
     const body = (await res.text()).match(/"message"\s*:\s*"([^"]+)"/)?.[1]
-    throw new SourceError('Web search', `Groq's free-tier limit was hit${body ? `: ${body}` : ''}`)
+    throw new RateLimited('Web search', `Groq's free-tier limit was hit${body ? `: ${body}` : ''}`)
   }
   if (!res.ok) throw new SourceError('Web search', `HTTP ${res.status}`)
   const search = parseGroqSearch(await res.json())
   if (!search.pages.length) throw new SourceError('Web search', 'the search returned no pages')
-  return search
+  return { ...search, model }
+}
+
+/**
+ * Pages read by the search count against a daily token limit, and one search takes most of a
+ * model's day. Limits are per model, so when one runs out the next is tried.
+ */
+export async function searchWeb(today: Date, env: Record<string, string | undefined> = process.env): Promise<WebSearch> {
+  if (!env.GROQ_API_KEY) throw new SourceError('Web search', 'GROQ_API_KEY is not set')
+  const models = [...new Set([env.SEARCH_MODEL || DEFAULT_SEARCH_MODEL, ...FALLBACK_SEARCH_MODELS])]
+  for (const [i, model] of models.entries()) {
+    try {
+      return await searchWith(model, today, env.GROQ_API_KEY)
+    } catch (error) {
+      if (!(error instanceof RateLimited) || i === models.length - 1) throw error
+      console.warn(`${model}: ${error.message}; trying ${models[i + 1]}`)
+    }
+  }
+  throw new SourceError('Web search', 'no search model configured')
 }
 
 /** Rates outside these ranges are typos, promotions for new clients or misread numbers */
@@ -238,6 +258,7 @@ export interface WebOffers {
   offers: Offer[]
   rejected: { name: string; reason: string }[]
   pagesSearched: number
+  model?: string
 }
 
 export async function fetchWebOffers(today: Date): Promise<WebOffers> {
@@ -251,5 +272,5 @@ export async function fetchWebOffers(today: Date): Promise<WebOffers> {
     else rejected.push({ name: `${raw.product} ${raw.issuer} ${raw.rate}`, reason: checked.reason })
   }
   if (invalid) rejected.push({ name: `${invalid} more`, reason: 'missing fields in the answer' })
-  return { offers: [...offers.values()], rejected, pagesSearched: search.pages.length }
+  return { offers: [...offers.values()], rejected, pagesSearched: search.pages.length, model: search.model }
 }

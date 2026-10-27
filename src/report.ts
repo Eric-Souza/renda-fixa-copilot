@@ -36,7 +36,7 @@ if (skipWeb) webError = 'skipped with --no-web'
 else {
   try {
     web = await fetchWebOffers(today)
-    console.log(`Web: ${web.offers.length} offers kept, ${web.rejected.length} rejected, ${web.pagesSearched} pages`)
+    console.log(`Web (${web.model}): ${web.offers.length} offers kept, ${web.rejected.length} rejected, ${web.pagesSearched} pages`)
     for (const r of web.rejected) console.log(`  rejected ${r.name}: ${r.reason}`)
   } catch (error) {
     webError = error instanceof Error ? error.message : String(error)

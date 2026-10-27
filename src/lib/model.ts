@@ -10,6 +10,8 @@ import { groq } from '@ai-sdk/groq'
 import type { LanguageModel } from 'ai'
 
 export const DEFAULT_SEARCH_MODEL = 'openai/gpt-oss-120b'
+/** Tried in order when the search model is out of its daily tokens */
+export const FALLBACK_SEARCH_MODELS = ['openai/gpt-oss-20b']
 
 export const DEFAULT_MODELS = {
   groq: 'openai/gpt-oss-20b',
