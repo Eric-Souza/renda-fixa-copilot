@@ -29,8 +29,8 @@ Groq web search ─► extract ─► verify ─────────┘     
 
 1. **Rates and forecasts** come from Banco Central's open APIs: CDI (SGS 4389), 12-month IPCA (SGS 13522) and the Focus survey's medians for Selic and IPCA by year. No key is needed.
 2. **Tesouro Direto** publishes every bond on sale with its current rate as JSON. Renda+, Educa+ and the coupon bonds are left out, since a hold-to-maturity simulation would misstate them.
-3. **Bank offers have no public API**, so a model searches the web for them: Groq's `groq/compound`, which has built-in search.
-   - A second model call (`generateText` with `Output.object` and a Zod schema) reads offers out of the search results.
+3. **Bank offers have no public API**, so a model searches the web for them: `gpt-oss-120b` on Groq with the built-in `browser_search` tool. It opens daily rankings and news pages, then answers with the offers as JSON, validated with Zod.
+   - The search and the reading happen in one call. A second call over the fetched pages would be about 20k tokens, well past the free tier's 8k a minute.
    - An LLM asked for rates without search makes them up. So every extracted offer has to pass checks in code, or it is dropped:
      - its source URL is one the search actually returned
      - its quote appears verbatim on that page
@@ -54,7 +54,7 @@ npm run report               # sends the email
 
 | Variable | What it is |
 |----------|------------|
-| `GROQ_API_KEY` | Free at [console.groq.com/keys](https://console.groq.com/keys). Used for the web search, the extraction and the summary |
+| `GROQ_API_KEY` | Free at [console.groq.com/keys](https://console.groq.com/keys). Used for the web search and the summary |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | The Gmail account that sends the report, with an [app password](https://myaccount.google.com/apppasswords) (needs 2-step verification) |
 | `REPORT_TO` | Who gets it; defaults to `GMAIL_USER` |
 | `INVEST_AMOUNT` | Amount to simulate, in reais (default 10000) |

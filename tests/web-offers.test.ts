@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { checkOffer, type ExtractedOffer, parseGroqSearch, type WebPage } from '../src/sources/web-offers'
+import { readFileSync } from 'node:fs'
+import { checkOffer, cleanPageText, type ExtractedOffer, parseAnswer, parseGroqSearch, type WebPage } from '../src/sources/web-offers'
 import { TODAY } from './helpers'
+
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'))
 
 describe('parseGroqSearch', () => {
   it('reads structured search results and merges repeats of a page', () => {
@@ -23,25 +26,34 @@ describe('parseGroqSearch', () => {
     expect(search.pages[0].content).toContain('95% do CDI')
   })
 
-  it('falls back to the text output when results are not structured', () => {
-    const search = parseGroqSearch({
-      choices: [
-        {
-          message: {
-            content: '',
-            executed_tools: [
-              {
-                output:
-                  'Title: Melhores CDBs\nURL: https://b.com/cdb\nContent: CDB Banco Pine paga 120% do CDI por 2 anos\nScore: 0.9\n' +
-                  'Title: Outro\nURL: https://c.com\nContent: LCI 92% do CDI\n',
-              },
-            ],
-          },
-        },
-      ],
-    })
-    expect(search.pages.map((p) => p.url)).toEqual(['https://b.com/cdb', 'https://c.com'])
-    expect(search.pages[0].content).toBe('CDB Banco Pine paga 120% do CDI por 2 anos')
+  it('reads a real browser_search response, without line numbers', () => {
+    const search = parseGroqSearch(fixture('groq-browser-search.json'))
+    const meelion = search.pages.find((p) => p.url.includes('meelion.com'))!
+    expect(meelion.title).toBe('Melhores Investimentos em CDB Hoje 27/10/2026')
+    expect(meelion.content).toContain('CDB DM FINANCEIRA S.A. 122,00% CDI')
+    expect(meelion.content).not.toMatch(/^L\d+:/m)
+    expect(new Set(search.pages.map((p) => p.url)).size).toBe(search.pages.length)
+  })
+
+  it('checks a quote against a real page, across wrapped lines', () => {
+    const search = parseGroqSearch(fixture('groq-browser-search.json'))
+    const infomoney = search.pages.find((p) => p.url.includes('infomoney'))!
+    const r = checkOffer(
+      {
+        product: 'CDB',
+        issuer: 'Fibra',
+        indexer: 'IPCA+',
+        rate: 8.15,
+        maturity: '2031-10',
+        liquidity: 'maturity',
+        platform: 'XP',
+        sourceUrl: infomoney.url,
+        quote: 'CDB FIBRA Taxa: IPC-A + 8,150%',
+      },
+      search.pages,
+      TODAY,
+    )
+    expect(r.ok && r.offer.maturity).toBe('2031-10-01')
   })
 
   it('handles a response with no tools', () => {
@@ -50,6 +62,29 @@ describe('parseGroqSearch', () => {
 
   it('rejects an unexpected response', () => {
     expect(() => parseGroqSearch({ error: 'x' })).toThrow(/Web search/)
+  })
+})
+
+describe('cleanPageText', () => {
+  it('drops line numbers and citation marks', () => {
+    expect(cleanPageText('L1: CDB 120% CDI【2†L25-L42】\nL2: Vencimento')).toBe('CDB 120% CDI\nVencimento')
+  })
+})
+
+describe('parseAnswer', () => {
+  const offer = { product: 'CDB', issuer: 'X', indexer: 'CDI', rate: 110, sourceUrl: 'https://x.com', quote: '110% do CDI' }
+
+  it('reads a JSON list, also inside a code fence, and counts items it cannot use', () => {
+    const answer = '```json\n' + JSON.stringify([offer, { ...offer, indexer: 'POUPANCA' }]) + '\n```'
+    const { offers, invalid } = parseAnswer(answer)
+    expect(offers).toHaveLength(1)
+    expect(offers[0].liquidity).toBe('maturity')
+    expect(invalid).toBe(1)
+  })
+
+  it('fails when there is no list', () => {
+    expect(() => parseAnswer('Não encontrei ofertas.')).toThrow(/no list of offers/)
+    expect(() => parseAnswer('[{oops}]')).toThrow(/not valid JSON/)
   })
 })
 
@@ -123,5 +158,20 @@ describe('checkOffer', () => {
   it('rejects an offer with no term or one about to mature', () => {
     expect(rejected({ termMonths: null })).toMatch(/no term/)
     expect(rejected({ termMonths: null, maturity: '2026-11-01' })).toMatch(/under 30 days/)
+  })
+})
+
+describe('rate matching', () => {
+  const page: WebPage[] = [{ url: 'https://x.com', title: 'x', content: 'CDB A 120% CDI. CDB B 122,00% CDI. CDB C IPCA + 8,150%. CDB D 12,5% a.a.' }]
+  const base: ExtractedOffer = { product: 'CDB', issuer: 'A', indexer: 'CDI', rate: 120, termMonths: 24, liquidity: 'maturity', sourceUrl: 'https://x.com', quote: '' }
+  const ok = (rate: number, quote: string, indexer: ExtractedOffer['indexer'] = 'CDI') =>
+    checkOffer({ ...base, rate, quote, indexer }, page, TODAY).ok
+
+  it('accepts padded decimals and rejects a different number', () => {
+    expect(ok(120, 'CDB A 120% CDI')).toBe(true)
+    expect(ok(122, 'CDB B 122,00% CDI')).toBe(true)
+    expect(ok(8.15, 'CDB C IPCA + 8,150%', 'IPCA+')).toBe(true)
+    expect(ok(12, 'CDB D 12,5% a.a.', 'PRE')).toBe(false)
+    expect(ok(12.5, 'CDB D 12,5% a.a.', 'PRE')).toBe(true)
   })
 })

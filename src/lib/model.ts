@@ -1,16 +1,18 @@
-// Which models run. Both steps need GROQ_API_KEY by default; Groq's free tier covers a daily run.
-//   SEARCH_MODEL  searches the web for bank offers (Groq's compound system, which has web search)
-//   AI_PROVIDER   reads offers out of the search results and writes the summary: groq or google
+// Which models run. Both need GROQ_API_KEY by default; Groq's free tier covers a daily run.
+//   SEARCH_MODEL  searches the web for bank offers, with Groq's built-in browser_search tool
+//   AI_PROVIDER   writes the summary: groq or google
 //   AI_MODEL      overrides that provider's default model
+// Groq's rate limits are per model, so the summary uses a different one than the search, which
+// uses up the minute's token budget on its own.
 
 import { google } from '@ai-sdk/google'
 import { groq } from '@ai-sdk/groq'
 import type { LanguageModel } from 'ai'
 
-export const DEFAULT_SEARCH_MODEL = 'groq/compound'
+export const DEFAULT_SEARCH_MODEL = 'openai/gpt-oss-120b'
 
 export const DEFAULT_MODELS = {
-  groq: 'openai/gpt-oss-120b',
+  groq: 'openai/gpt-oss-20b',
   google: 'gemini-3.5-flash-lite',
 } as const
 
