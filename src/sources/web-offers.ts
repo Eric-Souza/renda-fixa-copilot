@@ -261,9 +261,23 @@ export interface WebOffers {
   model?: string
 }
 
+/** The model sometimes answers in prose instead of JSON; a second search usually lists the offers */
+async function searchForOffers(today: Date, attempts = 2): Promise<{ search: WebSearch } & ReturnType<typeof parseAnswer>> {
+  for (let attempt = 1; ; attempt++) {
+    const search = await searchWeb(today)
+    try {
+      return { search, ...parseAnswer(search.answer) }
+    } catch (error) {
+      const start = search.answer.slice(0, 200).replace(/\s+/g, ' ')
+      const message = `${search.model}: ${error instanceof Error ? error.message : String(error)} ("${start}")`
+      if (attempt >= attempts) throw new SourceError('Web search', message)
+      console.warn(`${message}; searching again`)
+    }
+  }
+}
+
 export async function fetchWebOffers(today: Date): Promise<WebOffers> {
-  const search = await searchWeb(today)
-  const { offers: extracted, invalid } = parseAnswer(search.answer)
+  const { search, offers: extracted, invalid } = await searchForOffers(today)
   const offers = new Map<string, Offer>()
   const rejected: WebOffers['rejected'] = []
   for (const raw of extracted) {
