@@ -34,7 +34,8 @@ function term(days: number): string {
 }
 
 export function subject(r: Report): string {
-  const best = r.ranking.best
+  // CDBs lead the email; the overall best stands in on days the search found none
+  const best = r.ranking.cdbs.best ?? r.ranking.best
   const day = br(r.date).slice(0, 5)
   if (!best) return `Renda fixa ${day}: CDI ${pct(r.benchmarks.cdi)}`
   return `Renda fixa ${day}: ${best.offer.name} at ${pct(best.sim.netAnnual)} a year net`
@@ -91,7 +92,8 @@ function table(picks: Ranked[]): string {
   )
 }
 
-const h2 = (s: string) => `<h2 style="font-size:16px;margin:28px 0 8px;color:${INK};">${esc(s)}</h2>`
+const h2 = (s: string) => `<h2 style="font-size:18px;margin:32px 0 4px;color:${INK};">${esc(s)}</h2>`
+const h3 = (s: string) => `<h3 style="font-size:15px;margin:20px 0 8px;color:${INK};">${esc(s)}</h3>`
 const p = (s: string, style = '') => `<p style="margin:6px 0;line-height:1.5;${style}">${s}</p>`
 
 function focusLine(b: Benchmarks): string {
@@ -107,20 +109,45 @@ export function renderHtml(r: Report): string {
   parts.push(p(`Simulating ${brl(k.amount)}. CDI ${pct(b.cdi)} a year, IPCA ${pct(b.ipca12m)} over 12 months.`, `color:${MUTED};`))
   parts.push(p(esc(r.summary.text), 'font-size:15px;'))
 
+  parts.push(h2('Best CDBs'))
+  const cdbCount = k.all.filter((x) => x.offer.product === 'CDB').length
+  if (!k.cdbs.reserve && !k.cdbs.buckets.some((bucket) => bucket.picks.length)) {
+    parts.push(p(r.web.error ? 'No CDBs today: the web search failed (see below).' : 'The search found no CDBs today.', `color:${WARN};`))
+  } else {
+    parts.push(
+      p(
+        `${cdbCount} CDBs found today, ranked by net return after income tax. ` +
+          `Each is covered by the FGC up to ${brl(FGC_LIMIT)} per CPF per institution.`,
+        `color:${MUTED};font-size:13px;`,
+      ),
+    )
+  }
+  if (k.cdbs.reserve) {
+    parts.push(h3('CDB you can withdraw any day'))
+    parts.push(table([k.cdbs.reserve]))
+  }
+  for (const bucket of k.cdbs.buckets) {
+    if (!bucket.picks.length) continue
+    parts.push(h3(`CDBs for ${bucket.label.toLowerCase()}`))
+    parts.push(table(bucket.picks))
+  }
+
+  parts.push(h2('Compared with Tesouro, LCI and LCA'))
+  parts.push(p('The best of everything, CDBs included, for the same amount and terms.', `color:${MUTED};font-size:13px;`))
   if (k.reserve) {
-    parts.push(h2('Money you may need any day'))
+    parts.push(h3('Money you may need any day'))
     parts.push(p(`Compared over 1 year; you can withdraw any business day.`, `color:${MUTED};font-size:13px;`))
     parts.push(table([k.reserve]))
   }
 
   for (const bucket of k.buckets) {
     if (!bucket.picks.length) continue
-    parts.push(h2(`Best for ${bucket.label.toLowerCase()}`))
+    parts.push(h3(`Best for ${bucket.label.toLowerCase()}`))
     parts.push(table(bucket.picks))
   }
 
   if (k.breakEvens.length) {
-    parts.push(h2('Fixed rate or inflation-linked?'))
+    parts.push(h3('Fixed rate or inflation-linked?'))
     const items = k.breakEvens.map((e) => {
       const verdict = e.breakEven > e.expected ? 'the fixed rate pays more if the forecast holds' : 'the IPCA+ bond pays more if the forecast holds'
       return `<li>${esc(e.prefixado)} vs ${esc(e.ipca)}: same return at ${pct(e.breakEven)} inflation a year; the Focus survey expects ${pct(e.expected)}, so ${verdict}.</li>`
@@ -190,6 +217,13 @@ export function renderText(r: Report): string {
     '',
     r.summary.text,
   ]
+  lines.push('', 'BEST CDBS')
+  if (k.cdbs.reserve) lines.push('', 'CDB you can withdraw any day (over 1 year):', ...textRows([k.cdbs.reserve]))
+  for (const bucket of k.cdbs.buckets) {
+    if (bucket.picks.length) lines.push('', `CDBs for ${bucket.label.toLowerCase()}:`, ...textRows(bucket.picks))
+  }
+  if (!k.cdbs.reserve && !k.cdbs.buckets.some((bucket) => bucket.picks.length)) lines.push('No CDBs found today.')
+  lines.push('', 'COMPARED WITH TESOURO, LCI AND LCA')
   if (k.reserve) lines.push('', 'Money you may need any day (over 1 year):', ...textRows([k.reserve]))
   for (const bucket of k.buckets) {
     if (bucket.picks.length) lines.push('', `Best for ${bucket.label.toLowerCase()}:`, ...textRows(bucket.picks))

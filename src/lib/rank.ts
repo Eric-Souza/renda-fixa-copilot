@@ -20,6 +20,8 @@ export type BucketId = (typeof BUCKETS)[number]['id']
 /** Daily-liquidity offers are compared over a year, the usual horizon for an emergency reserve */
 export const RESERVE_HORIZON_DAYS = 365
 const PICKS_PER_BUCKET = 3
+/** CDBs are the main subject of the email, so more of them are listed */
+const CDB_PICKS_PER_BUCKET = 5
 
 export interface Ranked {
   offer: Offer
@@ -44,12 +46,17 @@ export interface BreakEven {
   expected: number
 }
 
-export interface Ranking {
-  amount: number
+export interface Picks {
   reserve?: Ranked
   /** The best net return a year among the term picks */
   best?: Ranked
   buckets: Bucket[]
+}
+
+export interface Ranking extends Picks {
+  amount: number
+  /** The same picks among CDBs alone */
+  cdbs: Picks
   all: Ranked[]
   breakEvens: BreakEven[]
 }
@@ -117,19 +124,30 @@ export function breakEvens(offers: Offer[], b: Benchmarks, today: Date): BreakEv
 export function rankOffers(offers: Offer[], amount: number, b: Benchmarks, today: Date): Ranking {
   const all = offers.map((o) => rank(o, amount, b, today)).sort(byNet)
   const affordable = all.filter((r) => !r.offer.minimum || r.offer.minimum <= amount)
+  return {
+    amount,
+    ...picks(affordable, PICKS_PER_BUCKET),
+    cdbs: picks(
+      affordable.filter((r) => r.offer.product === 'CDB'),
+      CDB_PICKS_PER_BUCKET,
+    ),
+    all,
+    breakEvens: breakEvens(offers, b, today),
+  }
+}
 
-  const reserve = affordable.filter((r) => r.offer.liquidity === 'daily').sort(byNet)[0]
-
+/** Offers already sorted by net return, from best */
+function picks(sorted: Ranked[], perBucket: number): Picks {
+  const reserve = sorted.find((r) => r.offer.liquidity === 'daily')
   const buckets: Bucket[] = BUCKETS.map((bucket) => ({ id: bucket.id, label: bucket.label, picks: [] as Ranked[] }))
-  for (const r of affordable) {
+  for (const r of sorted) {
     // Daily-liquidity offers are compared as a reserve, not by how far off their maturity is
     if (r.offer.liquidity === 'daily') continue
     const i = BUCKETS.findIndex((bucket) => r.sim.days <= bucket.maxDays)
-    if (buckets[i].picks.length < PICKS_PER_BUCKET) buckets[i].picks.push(r)
+    if (buckets[i].picks.length < perBucket) buckets[i].picks.push(r)
   }
-
   const best = buckets.flatMap((bucket) => bucket.picks.slice(0, 1)).sort(byNet)[0]
-  return { amount, reserve, best, buckets, all, breakEvens: breakEvens(offers, b, today) }
+  return { reserve, best, buckets }
 }
 
 /** One line per pick, for the email and for the model writing the summary */

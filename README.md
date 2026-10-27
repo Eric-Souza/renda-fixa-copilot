@@ -1,6 +1,6 @@
 # Renda Fixa Copilot
 
-A daily email that compares Brazilian fixed income: bank CDBs, LCIs and LCAs, and Tesouro Direto bonds (Selic, Prefixado, IPCA+). Every offer is simulated for the same amount, net of income tax and fees. Each comes with its FGC or government guarantee, its term, and the app or broker to invest through (Nubank, Inter, PicPay, XP...). The email then suggests where to put money for each time horizon.
+A daily email about the best Brazilian CDBs, compared with LCIs, LCAs and Tesouro Direto bonds (Selic, Prefixado, IPCA+). Every offer is simulated for the same amount, net of income tax and fees. Each comes with its FGC or government guarantee, its term, and the app or broker to invest through (Nubank, Inter, PicPay, XP...). The email then suggests where to put money for each time horizon.
 
 Runs on a GitHub Actions cron, every weekday at 08:00 Brasília time.
 
@@ -8,11 +8,11 @@ Runs on a GitHub Actions cron, every weekday at 08:00 Brasília time.
 
 ## What's in the email
 
-- **Money you may need any day:** the best daily-liquidity option over one year (Tesouro Selic, or a CDB with daily liquidity)
-- **Best by term:** the top 3 net returns for up to 1 year, 1 to 3 years, 3 to 6 years and over 6 years. Each pick shows:
+- **Best CDBs** come first: the top 5 CDBs for up to 1 year, 1 to 3 years, 3 to 6 years and over 6 years, plus the best CDB with daily liquidity. Each pick shows:
   - where to invest, the rate, the maturity, the value at the end and the profit
   - its net return a year, compared with a CDB at 100% of CDI
-  - the guarantee, why it was picked, and what to watch (FGC limit, selling before maturity, minimum investment)
+  - the FGC guarantee, why it was picked, and what to watch (FGC limit, minimum investment)
+- **Compared with Tesouro, LCI and LCA:** the top 3 of everything for the same terms, and the best place for money you may need any day (Tesouro Selic, or a CDB with daily liquidity)
 - **Fixed rate or inflation-linked?** the inflation at which a Prefixado and an IPCA+ bond pay the same, against the Focus survey's forecast
 - **Since the last report:** rate moves, plus new offers and offers that went away (needs a database)
 - **A short summary** written by a model from the computed numbers

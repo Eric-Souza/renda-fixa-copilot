@@ -33,6 +33,13 @@ describe('rankOffers', () => {
     expect(ranking.all.find((r) => r.offer.name === 'CDB D')?.warnings.join()).toMatch(/Minimum investment/)
   })
 
+  it('picks CDBs on their own, without Tesouro or LCA', () => {
+    const names = ranking.cdbs.buckets.flatMap((b) => b.picks.map((p) => p.offer.name))
+    expect(names).toEqual(['CDB A'])
+    expect(ranking.cdbs.reserve?.offer.name).toBe('CDB C')
+    expect(ranking.cdbs.best?.offer.name).toBe('CDB A')
+  })
+
   it('explains each pick and flags web offers', () => {
     const lca = ranking.all.find((r) => r.offer.name === 'LCA B')!
     expect(lca.reasons.join(' ')).toMatch(/Tax-exempt/)

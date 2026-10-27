@@ -6,6 +6,8 @@ const facts: SummaryFacts = {
   amount: 'R$ 10.000',
   cdi: '13.65% a year',
   ipca12m: '4.58% over the last 12 months',
+  bestCdb: 'CDB Banco XP (15,05% a.a., until 2031-10-01, invest through XP): 13.24% a year net, R$ 18.463 at the end',
+  bestCdbByTerm: ['3 to 6 years: CDB Banco XP (15,05% a.a., until 2031-10-01, invest through XP): 13.24% a year net, R$ 18.463 at the end'],
   reserve: 'Tesouro Selic 2031 (Selic + 0,1%, until 2027-10-27): 10.75% a year net, R$ 11.075 at the end',
   bestByTerm: ['1 to 3 years: Tesouro Prefixado 2029 (14,79% a.a., until 2029-01-01): 12.53% a year net, R$ 12.940 at the end'],
   breakEvens: [],
@@ -21,6 +23,10 @@ describe('numbersCheck', () => {
   it('rejects rounded or invented numbers', () => {
     const s = 'Tesouro Prefixado 2029 pays about 12.5% a year, or R$ 2.940 of profit.'
     expect(numbersCheck(s, facts).unknown).toEqual(['12.5', '2.940'])
+  })
+
+  it('accepts a decimal comma for a number in the facts', () => {
+    expect(numbersCheck('Tesouro Prefixado 2029 pays 12,53% a year net.', facts).ok).toBe(true)
   })
 
   it('has a template that passes its own check', () => {

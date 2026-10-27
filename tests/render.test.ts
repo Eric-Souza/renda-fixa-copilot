@@ -24,6 +24,28 @@ describe('render', () => {
     expect(subject(report())).toMatch(/^Renda fixa 27\/10: CDB <A> at \d+\.\d\d% a year net$/)
   })
 
+  it('names the best CDB even when Tesouro pays more', () => {
+    const tesouro = offer({ id: 't', product: 'TESOURO', name: 'Tesouro Prefixado 2029', indexer: 'PRE', rate: 20, maturity: '2029-01-01', source: { kind: 'tesouro', url: 'https://tesouro' } })
+    const r = report()
+    r.ranking = rankOffers([...r.ranking.all.map((x) => x.offer), tesouro], 10_000, flat, TODAY)
+    expect(r.ranking.best?.offer.name).toBe('Tesouro Prefixado 2029')
+    expect(subject(r)).toMatch(/: CDB <A> at/)
+  })
+
+  it('leads with the CDBs, then compares with everything else', () => {
+    const html = renderHtml(report())
+    expect(html.indexOf('Best CDBs')).toBeLessThan(html.indexOf('Compared with Tesouro, LCI and LCA'))
+    expect(html).toContain('CDB you can withdraw any day')
+    expect(html).toContain('CDBs for up to 1 year')
+    expect(renderText(report())).toContain('CDBs for up to 1 year:')
+  })
+
+  it('says when there are no CDBs', () => {
+    const r = report({ web: { found: 0, rejected: [], pagesSearched: 0, error: 'timed out' } })
+    r.ranking = rankOffers([], 10_000, flat, TODAY)
+    expect(renderHtml(r)).toContain('No CDBs today: the web search failed')
+  })
+
   it('escapes text from the web', () => {
     const html = renderHtml(report())
     expect(html).toContain('CDB &lt;A&gt;')

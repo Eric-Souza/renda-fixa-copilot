@@ -48,11 +48,14 @@ export function searchPrompt(today: Date): string {
   const day = today.toISOString().slice(0, 10)
   const month = `${MONTHS[today.getUTCMonth()]} de ${today.getUTCFullYear()}`
   return [
-    `Hoje é ${day}. Pesquise na web as ofertas de CDB, LCI e LCA com as maiores taxas disponíveis hoje ou em ${month} ` +
-      'em bancos e corretoras brasileiras: pós-fixadas (% do CDI), prefixadas e IPCA+. Bons pontos de partida são ' +
-      'rankings diários (Meelion, Investidor10, Yubb) e as colunas "Renda Fixa Hoje" (InfoMoney). Abra no máximo 4 páginas, as que listam mais ofertas.',
+    `Hoje é ${day}. Pesquise na web as ofertas de CDB com as maiores taxas disponíveis hoje ou em ${month} ` +
+      'em bancos e corretoras brasileiras. Procure CDBs de todos os prazos (até 1 ano, 1 a 3 anos, mais de 3 anos), ' +
+      'dos três tipos (pós-fixados em % do CDI, prefixados e IPCA+) e também CDBs com liquidez diária. ' +
+      'Inclua algumas LCI e LCA se aparecerem, mas a maioria das ofertas deve ser de CDB. Bons pontos de partida são ' +
+      'rankings diários de CDB (Meelion, Investidor10, Yubb) e as colunas "Renda Fixa Hoje" (InfoMoney). ' +
+      'Abra no máximo 4 páginas, as que listam mais ofertas.',
     '',
-    'Responda só com um array JSON, sem texto antes ou depois, com até 25 ofertas específicas que aparecem nas páginas que você abriu:',
+    'Responda só com um array JSON, sem texto antes ou depois, com até 25 ofertas específicas (pelo menos 15 CDBs, se houver) que aparecem nas páginas que você abriu:',
     '[{"product":"CDB|LCI|LCA|LC|RDB","issuer":"banco emissor","indexer":"CDI|CDI+|PRE|IPCA+",' +
       '"rate":120,"termMonths":24 ou null,"maturity":"AAAA-MM-DD" ou "AAAA-MM" ou null,"liquidity":"daily|maturity",' +
       '"minimum":1000 ou null,"platform":"app ou corretora onde investir (Nubank, Inter, PicPay, XP, BTG...)" ou null,' +
