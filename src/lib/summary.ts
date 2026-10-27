@@ -73,7 +73,8 @@ export async function writeSummary(facts: SummaryFacts): Promise<{ text: string;
       system: SUMMARY_SYSTEM,
       prompt: JSON.stringify(facts),
       timeout: { totalMs: 60_000 },
-      maxRetries: 1,
+      // The search may have just used most of this model's minute on the same model
+      maxRetries: 3,
     })
     const summary = text.trim()
     if (!summary) return { text: templateSummary(facts), byModel: false, note: 'the model returned no text' }
