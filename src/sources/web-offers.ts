@@ -149,7 +149,11 @@ export async function searchWeb(today: Date, env: Record<string, string | undefi
     throw new SourceError('Web search', error instanceof Error && error.name === 'TimeoutError' ? 'timed out' : String(error))
   }
   if (res.status === 401) throw new SourceError('Web search', 'GROQ_API_KEY was rejected')
-  if (res.status === 429) throw new SourceError('Web search', "Groq's free-tier limit was hit")
+  if (res.status === 429) {
+    // Groq says which limit (tokens a minute or a day) and when it resets
+    const body = (await res.text()).match(/"message"\s*:\s*"([^"]+)"/)?.[1]
+    throw new SourceError('Web search', `Groq's free-tier limit was hit${body ? `: ${body}` : ''}`)
+  }
   if (!res.ok) throw new SourceError('Web search', `HTTP ${res.status}`)
   const search = parseGroqSearch(await res.json())
   if (!search.pages.length) throw new SourceError('Web search', 'the search returned no pages')

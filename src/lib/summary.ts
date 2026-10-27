@@ -2,8 +2,7 @@
 // model that writes about money tends to round, recompute or invent figures, so any summary with a
 // number that is not in the facts is thrown away and a plain template is used instead.
 
-import { generateText, Output } from 'ai'
-import { z } from 'zod'
+import { generateText } from 'ai'
 import { getModel } from './model'
 import { describe, type Ranking } from './rank'
 import type { Benchmarks } from './benchmarks'
@@ -59,29 +58,27 @@ export function templateSummary(facts: SummaryFacts): string {
   return lines.join(' ')
 }
 
-const SummarySchema = z.object({
-  summary: z.string().describe('3 to 5 plain sentences'),
-})
-
 const SUMMARY_SYSTEM =
   'You write the opening paragraph of a daily email about Brazilian fixed income for one investor. ' +
   'You get facts computed from live data. In 3 to 5 plain sentences, say where to put money that may ' +
   'be needed any day, which term pays best now and why, which app or broker to invest through, and ' +
   'what changed since the last report if anything did. Copy every number exactly as it appears in the facts; never round, convert or ' +
-  'compute a new number. Do not use hype, and do not promise returns. English.'
+  'compute a new number. Do not use hype, and do not promise returns. English, plain text only: no markdown, no heading.'
 
 export async function writeSummary(facts: SummaryFacts): Promise<{ text: string; byModel: boolean; note?: string }> {
   try {
-    const { output } = await generateText({
+    // Plain text: the small model often breaks a JSON wrapper, and there is only one field
+    const { text } = await generateText({
       model: getModel(),
-      output: Output.object({ schema: SummarySchema }),
       system: SUMMARY_SYSTEM,
       prompt: JSON.stringify(facts),
       timeout: { totalMs: 60_000 },
       maxRetries: 1,
     })
-    const check = numbersCheck(output.summary, facts)
-    if (check.ok) return { text: output.summary.trim(), byModel: true }
+    const summary = text.trim()
+    if (!summary) return { text: templateSummary(facts), byModel: false, note: 'the model returned no text' }
+    const check = numbersCheck(summary, facts)
+    if (check.ok) return { text: summary, byModel: true }
     return { text: templateSummary(facts), byModel: false, note: `model used numbers not in the facts: ${check.unknown.join(', ')}` }
   } catch (error) {
     return { text: templateSummary(facts), byModel: false, note: error instanceof Error ? error.message : String(error) }
