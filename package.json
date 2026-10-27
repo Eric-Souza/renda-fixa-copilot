@@ -1,0 +1,41 @@
+{
+  "name": "renda-fixa-copilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daily email ranking Brazilian fixed income (CDB, LCI, LCA, Tesouro IPCA+) with net-of-tax simulations",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "report": "tsx src/report.ts",
+    "report:dry": "tsx src/report.ts --dry-run",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.139",
+    "@ai-sdk/groq": "^3.0.79",
+    "ai": "^6.0.316",
+    "drizzle-orm": "^0.45.4",
+    "nodemailer": "^10.2.1",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.19.43",
+    "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^10.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12"
+  }
+}

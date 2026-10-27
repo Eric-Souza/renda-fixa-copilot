@@ -1,0 +1,38 @@
+name: Daily report
+
+on:
+  schedule:
+    # 08:00 in Brasília, Monday to Friday: rates don't move on weekends
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build the report without sending it
+        type: boolean
+        default: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run report -- ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INVEST_AMOUNT: ${{ vars.INVEST_AMOUNT || '10000' }}
+      - uses: actions/upload-artifact@v4
+        if: inputs.dry_run
+        with:
+          name: report
+          path: out/
+          retention-days: 7
