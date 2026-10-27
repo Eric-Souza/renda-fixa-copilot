@@ -56,6 +56,24 @@ describe('parseGroqSearch', () => {
     expect(r.ok && r.offer.maturity).toBe('2031-10-01')
   })
 
+  it('skips tool steps with null fields', () => {
+    const search = parseGroqSearch({
+      choices: [
+        {
+          message: {
+            content: null,
+            executed_tools: [
+              { search_results: null },
+              { search_results: { results: null } },
+              { search_results: { results: [{ title: null, url: null }, { url: 'https://a.com', content: null }] } },
+            ],
+          },
+        },
+      ],
+    })
+    expect(search.pages).toEqual([{ url: 'https://a.com', title: 'https://a.com', content: '' }])
+  })
+
   it('handles a response with no tools', () => {
     expect(parseGroqSearch({ choices: [{ message: { content: 'x' } }] }).pages).toEqual([])
   })

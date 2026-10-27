@@ -63,17 +63,17 @@ export function searchPrompt(today: Date): string {
   ].join('\n')
 }
 
-const searchResultSchema = z.object({ title: z.string().optional(), url: z.string(), content: z.string().optional() })
+// Fields come back null or missing depending on the tool step, so everything but the message is optional
+const searchResultSchema = z.object({ title: z.string().nullish(), url: z.string().nullish(), content: z.string().nullish() })
 const groqResponseSchema = z.object({
   choices: z
     .array(
       z.object({
         message: z.object({
-          content: z.string().nullable().optional(),
+          content: z.string().nullish(),
           executed_tools: z
-            .array(z.object({ search_results: z.object({ results: z.array(searchResultSchema).optional() }).nullable().optional() }))
-            .nullable()
-            .optional(),
+            .array(z.object({ search_results: z.object({ results: z.array(searchResultSchema).nullish() }).nullish() }))
+            .nullish(),
         }),
       }),
     )
@@ -91,11 +91,15 @@ export function cleanPageText(text: string): string {
 
 export function parseGroqSearch(json: unknown): WebSearch {
   const parsed = groqResponseSchema.safeParse(json)
-  if (!parsed.success) throw new SourceError('Web search', 'unexpected response from Groq')
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    throw new SourceError('Web search', `unexpected response from Groq (${issue.path.join('.')}: ${issue.message})`)
+  }
   const message = parsed.data.choices[0].message
   const pages = new Map<string, WebPage>()
   for (const tool of message.executed_tools ?? []) {
     for (const r of tool.search_results?.results ?? []) {
+      if (!r.url) continue
       const key = normalizeUrl(r.url)
       const content = cleanPageText(r.content ?? '')
       const seen = pages.get(key)
