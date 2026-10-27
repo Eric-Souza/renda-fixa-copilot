@@ -53,41 +53,53 @@ const cell = `padding:8px 10px;vertical-align:top;`
 const head = `${cell}border-bottom:1px solid ${LINE};text-align:left;font-weight:600;color:${MUTED};font-size:12px;`
 const num = `${cell}text-align:right;white-space:nowrap;`
 
-const nameCell = (x: Ranked) => `<a href="${esc(x.offer.source.url)}" style="color:${INK};font-weight:600;">${esc(x.offer.name)}</a>`
+const nameCell = (x: Ranked) =>
+  `<a href="${esc(x.offer.source.url)}" style="color:${INK};font-weight:600;">${esc(x.offer.name)}</a>` +
+  `<div style="color:${MUTED};font-size:12px;">Invest through ${esc(x.offer.platform)}</div>`
+
+/** "R$ 75.000" to "R$ 75k", to keep the column headers short */
+const short = (n: number) => (n >= 1000 && n % 1000 === 0 ? `R$ ${n / 1000}k` : brl(n))
 
 /** Why it was picked and what to watch, on a full-width row under the numbers */
-function notesRow(x: Ranked): string {
+function notesRow(x: Ranked, columns: number): string {
   const why = x.reasons.map(esc).join(' · ')
   const warn = x.warnings.map((s) => `<div style="color:${WARN};">${esc(s)}</div>`).join('')
-  return `<tr><td colspan="7" style="${cell}padding-top:0;border-bottom:1px solid ${LINE};color:${MUTED};font-size:12px;">${why}${warn}</td></tr>`
+  return `<tr><td colspan="${columns}" style="${cell}padding-top:0;border-bottom:1px solid ${LINE};color:${MUTED};font-size:12px;">${why}${warn}</td></tr>`
 }
 
-function rows(picks: Ranked[]): string {
+function rows(picks: Ranked[], columns: number): string {
   return picks
     .map((x) => {
       const vs = x.sim.vsCdi
+      // Profit is the headline; the total at the end sits under it
+      const profits = x.scenarios
+        .map((s) => `<td style="${num}"><b style="color:${GOOD};">+${brl(s.netProfit)}</b><div style="color:${MUTED};font-size:12px;">${brl(s.net)}</div></td>`)
+        .join('')
       return (
         `<tr><td style="${cell}">${nameCell(x)}</td>` +
-        `<td style="${cell}font-size:13px;">${esc(x.offer.platform)}</td>` +
         `<td style="${num}">${esc(rateLabel(x.offer))}</td>` +
         `<td style="${num}">${br(x.sim.until)}<div style="color:${MUTED};font-size:12px;">${term(x.sim.days)}</div></td>` +
-        `<td style="${num}">${brl(x.sim.net)}<div style="color:${GOOD};font-size:12px;">+${brl(x.sim.netProfit)}</div></td>` +
         `<td style="${num}"><b>${pct(x.sim.netAnnual)}</b><div style="color:${vs >= 0 ? GOOD : BAD};font-size:12px;">${signed(vs)} vs CDI</div></td>` +
+        profits +
         `<td style="${cell}font-size:12px;">${x.guarantee.kind === 'fgc' ? 'FGC' : x.guarantee.kind === 'government' ? 'Government' : 'None'}</td></tr>` +
-        notesRow(x)
+        notesRow(x, columns)
       )
     })
     .join('')
 }
 
 function table(picks: Ranked[]): string {
+  const amounts = picks[0]?.scenarios.map((s) => s.amount) ?? []
+  const columns = 5 + amounts.length
   return (
     `<table cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;font-size:14px;">` +
-    `<tr><th style="${head}">Investment</th><th style="${head}">Where to invest</th>` +
+    `<tr><th style="${head}">Investment</th>` +
     `<th style="${head}text-align:right;">Rate</th>` +
-    `<th style="${head}text-align:right;">Until</th><th style="${head}text-align:right;">Net value</th>` +
-    `<th style="${head}text-align:right;">Net a year</th><th style="${head}">Guarantee</th></tr>` +
-    rows(picks) +
+    `<th style="${head}text-align:right;">Until</th>` +
+    `<th style="${head}text-align:right;">Net a year</th>` +
+    amounts.map((a) => `<th style="${head}text-align:right;">Profit on ${short(a)}</th>`).join('') +
+    `<th style="${head}">Guarantee</th></tr>` +
+    rows(picks, columns) +
     `</table>`
   )
 }
@@ -106,7 +118,7 @@ export function renderHtml(r: Report): string {
   const { ranking: k, benchmarks: b } = r
   const parts: string[] = []
   parts.push(`<h1 style="font-size:20px;margin:0 0 4px;">Renda fixa, ${br(r.date)}</h1>`)
-  parts.push(p(`Simulating ${brl(k.amount)}. CDI ${pct(b.cdi)} a year, IPCA ${pct(b.ipca12m)} over 12 months.`, `color:${MUTED};`))
+  parts.push(p(`Simulating ${k.amounts.map(brl).join(', ')}. CDI ${pct(b.cdi)} a year, IPCA ${pct(b.ipca12m)} over 12 months.`, `color:${MUTED};`))
   parts.push(p(esc(r.summary.text), 'font-size:15px;'))
 
   parts.push(h2('Best CDBs'))
@@ -203,8 +215,8 @@ export function renderHtml(r: Report): string {
 function textRows(picks: Ranked[]): string[] {
   return picks.map(
     (x) =>
-      `- ${x.offer.name} (${rateLabel(x.offer)}), until ${br(x.sim.until)}: ${brl(x.sim.net)} net (+${brl(x.sim.netProfit)}), ` +
-      `${pct(x.sim.netAnnual)} a year, ${signed(x.sim.vsCdi)} vs CDI. Invest through: ${x.offer.platform}. ${x.guarantee.label}.` +
+      `- ${x.offer.name} (${rateLabel(x.offer)}), until ${br(x.sim.until)}: ${pct(x.sim.netAnnual)} a year net, ` +
+      `${signed(x.sim.vsCdi)} vs CDI. Net profit: ${x.scenarios.map((s) => `+${brl(s.netProfit)} on ${brl(s.amount)}`).join(', ')}. Invest through: ${x.offer.platform}. ${x.guarantee.label}.` +
       (x.warnings.length ? ` Note: ${x.warnings.join('; ')}.` : ''),
   )
 }
@@ -213,7 +225,7 @@ export function renderText(r: Report): string {
   const { ranking: k, benchmarks: b } = r
   const lines = [
     `Renda fixa, ${br(r.date)}`,
-    `Simulating ${brl(k.amount)}. CDI ${pct(b.cdi)} a year, IPCA ${pct(b.ipca12m)} over 12 months.`,
+    `Simulating ${k.amounts.map(brl).join(', ')}. CDI ${pct(b.cdi)} a year, IPCA ${pct(b.ipca12m)} over 12 months.`,
     '',
     r.summary.text,
   ]

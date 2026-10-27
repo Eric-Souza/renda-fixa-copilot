@@ -25,7 +25,7 @@ const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', curren
 
 export function summaryFacts(ranking: Ranking, b: Benchmarks, changes: string[]): SummaryFacts {
   return {
-    amount: brl(ranking.amount),
+    amount: ranking.amounts.map(brl).join(', '),
     cdi: `${b.cdi.toFixed(2)}% a year`,
     ipca12m: `${b.ipca12m.toFixed(2)}% over the last 12 months`,
     bestCdb: ranking.cdbs.best && describe(ranking.cdbs.best),
@@ -61,7 +61,7 @@ export function numbersCheck(summary: string, facts: SummaryFacts): { ok: boolea
 
 export function templateSummary(facts: SummaryFacts): string {
   const lines = [`CDI is at ${facts.cdi} and inflation was ${facts.ipca12m}.`]
-  if (facts.bestCdb) lines.push(`Best CDB for ${facts.amount}: ${facts.bestCdb}.`)
+  if (facts.bestCdb) lines.push(`Best CDB: ${facts.bestCdb}.`)
   if (facts.best && facts.best !== facts.bestCdb) lines.push(`Best of everything: ${facts.best}.`)
   if (facts.reserve) lines.push(`For money you may need any day: ${facts.reserve}.`)
   if (facts.changes.length) lines.push(`Since the last report: ${facts.changes.join('; ')}.`)

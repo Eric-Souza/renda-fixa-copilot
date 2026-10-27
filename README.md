@@ -9,7 +9,7 @@ Runs on a GitHub Actions cron, every weekday at 08:00 Brasília time.
 ## What's in the email
 
 - **Best CDBs** come first: the top 5 CDBs for up to 1 year, 1 to 3 years, 3 to 6 years and over 6 years, plus the best CDB with daily liquidity. Each pick shows:
-  - where to invest, the rate, the maturity, the value at the end and the profit
+  - where to invest, the rate, the maturity, and the net profit for each amount (R$ 75k, 100k and 150k by default)
   - its net return a year, compared with a CDB at 100% of CDI
   - the FGC guarantee, why it was picked, and what to watch (FGC limit, minimum investment)
 - **Compared with Tesouro, LCI and LCA:** the top 3 of everything for the same terms, and the best place for money you may need any day (Tesouro Selic, or a CDB with daily liquidity)
@@ -57,10 +57,10 @@ npm run report               # sends the email
 | `GROQ_API_KEY` | Free at [console.groq.com/keys](https://console.groq.com/keys). Used for the web search and the summary |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | The Gmail account that sends the report, with an [app password](https://myaccount.google.com/apppasswords) (needs 2-step verification) |
 | `REPORT_TO` | Who gets it; defaults to `GMAIL_USER` |
-| `INVEST_AMOUNT` | Amount to simulate, in reais (default 10000) |
+| `INVEST_AMOUNTS` | Amounts to simulate, in reais, separated by commas (default 75000,100000,150000) |
 | `DATABASE_URL` | Optional Postgres (Neon) for history; run `npm run db:migrate` once |
 
-For the daily run, add the same names as repository secrets (`gh secret set GROQ_API_KEY`, etc.). `INVEST_AMOUNT` can be a repository variable. Use **Actions → Daily report → Run workflow** to run it by hand; tick *dry run* to get the HTML as an artifact without sending it.
+For the daily run, add the same names as repository secrets (`gh secret set GROQ_API_KEY`, etc.). `INVEST_AMOUNTS` can be a repository variable. Use **Actions → Daily report → Run workflow** to run it by hand; tick *dry run* to get the HTML as an artifact without sending it.
 
 ## Stack
 

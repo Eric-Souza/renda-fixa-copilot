@@ -74,6 +74,16 @@ describe('render', () => {
     expect(text).toContain('Best for up to 1 year:')
     expect(text).toContain('- CDB <A> (120% do CDI)')
     expect(text).toContain('Invest through: XP.')
-    expect(renderHtml(report())).toContain('Where to invest')
+    expect(renderHtml(report())).toContain('Invest through XP')
+  })
+
+  it('shows the profit for each amount', () => {
+    const r = report()
+    r.ranking = rankOffers(r.ranking.all.map((x) => x.offer), [150_000, 75_000, 100_000], flat, TODAY)
+    const html = renderHtml(r)
+    expect(html.indexOf('Profit on R$ 75k')).toBeLessThan(html.indexOf('Profit on R$ 100k'))
+    expect(html).toContain('Profit on R$ 150k')
+    expect(html).toMatch(/Simulating R\$\s75\.000, R\$\s100\.000, R\$\s150\.000/)
+    expect(renderText(r)).toMatch(/Net profit: \+R\$\s[\d.]+ on R\$\s75\.000, \+R\$\s[\d.]+ on R\$\s100\.000/)
   })
 })

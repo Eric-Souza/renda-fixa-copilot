@@ -23,9 +23,20 @@ const PICKS_PER_BUCKET = 3
 /** CDBs are the main subject of the email, so more of them are listed */
 const CDB_PICKS_PER_BUCKET = 5
 
+/** The same offer simulated for one of the amounts in the email */
+export interface Scenario {
+  amount: number
+  net: number
+  netProfit: number
+  netAnnual: number
+}
+
 export interface Ranked {
   offer: Offer
+  /** Simulated for the first amount, which the picks are ranked by */
   sim: Simulation
+  /** One per amount, smallest first */
+  scenarios: Scenario[]
   guarantee: Guarantee
   reasons: string[]
   warnings: string[]
@@ -54,7 +65,9 @@ export interface Picks {
 }
 
 export interface Ranking extends Picks {
+  /** The amount the picks are ranked by: the smallest of the amounts */
   amount: number
+  amounts: number[]
   /** The same picks among CDBs alone */
   cdbs: Picks
   all: Ranked[]
@@ -64,9 +77,13 @@ export interface Ranking extends Picks {
 const pct = (n: number, digits = 2) => `${n.toFixed(digits)}%`
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
 
-function rank(offer: Offer, amount: number, b: Benchmarks, today: Date): Ranked {
-  const sim = simulate(offer, amount, b, today, { horizonDays: RESERVE_HORIZON_DAYS })
-  const g = guarantee(offer.product, sim.net)
+function rank(offer: Offer, amounts: number[], b: Benchmarks, today: Date): Ranked {
+  const sims = amounts.map((amount) => simulate(offer, amount, b, today, { horizonDays: RESERVE_HORIZON_DAYS }))
+  const sim = sims[0]
+  const amount = amounts[0]
+  const scenarios = sims.map(({ amount, net, netProfit, netAnnual }) => ({ amount, net, netProfit, netAnnual }))
+  // The FGC limit is checked for the largest amount, the one most likely to go past it
+  const g = guarantee(offer.product, sims[sims.length - 1].net)
   const reasons: string[] = []
   const warnings: string[] = []
 
@@ -82,13 +99,13 @@ function rank(offer: Offer, amount: number, b: Benchmarks, today: Date): Ranked 
   if (offer.liquidity === 'daily') reasons.push('Can be withdrawn any business day')
   reasons.push(g.kind === 'government' ? 'Backed by the federal government' : g.label)
 
-  if (g.warning) warnings.push(g.warning)
+  if (g.warning) warnings.push(amounts.length > 1 ? `Investing ${brl(amounts[amounts.length - 1])}: ${g.warning}` : g.warning)
   if (offer.minimum && offer.minimum > amount) warnings.push(`Minimum investment is ${brl(offer.minimum)}`)
   if (offer.product === 'TESOURO' && offer.liquidity === 'maturity') {
     warnings.push('Selling before maturity is at market price, which can be a loss')
   }
   if (offer.source.kind === 'web') warnings.push('Found on the web: confirm the rate at the broker before investing')
-  return { offer, sim, guarantee: g, reasons, warnings }
+  return { offer, sim, scenarios, guarantee: g, reasons, warnings }
 }
 
 const byNet = (a: Ranked, b: Ranked) => b.sim.netAnnual - a.sim.netAnnual
@@ -121,11 +138,15 @@ export function breakEvens(offers: Offer[], b: Benchmarks, today: Date): BreakEv
   return result
 }
 
-export function rankOffers(offers: Offer[], amount: number, b: Benchmarks, today: Date): Ranking {
-  const all = offers.map((o) => rank(o, amount, b, today)).sort(byNet)
+export function rankOffers(offers: Offer[], amountOrAmounts: number | number[], b: Benchmarks, today: Date): Ranking {
+  const amounts = [...new Set([amountOrAmounts].flat())].sort((x, y) => x - y)
+  if (!amounts.length) throw new Error('rankOffers needs at least one amount')
+  const amount = amounts[0]
+  const all = offers.map((o) => rank(o, amounts, b, today)).sort(byNet)
   const affordable = all.filter((r) => !r.offer.minimum || r.offer.minimum <= amount)
   return {
     amount,
+    amounts,
     ...picks(affordable, PICKS_PER_BUCKET),
     cdbs: picks(
       affordable.filter((r) => r.offer.product === 'CDB'),
@@ -152,8 +173,9 @@ function picks(sorted: Ranked[], perBucket: number): Picks {
 
 /** One line per pick, for the email and for the model writing the summary */
 export function describe(r: Ranked): string {
+  const profits = r.scenarios.map((x) => `${brl(x.netProfit)} on ${brl(x.amount)}`).join(', ')
   return (
     `${r.offer.name} (${rateLabel(r.offer)}, until ${r.sim.until}, invest through ${r.offer.platform}): ` +
-    `${pct(r.sim.netAnnual)} a year net, ${brl(r.sim.net)} at the end`
+    `${pct(r.sim.netAnnual)} a year net, net profit ${profits}`
   )
 }

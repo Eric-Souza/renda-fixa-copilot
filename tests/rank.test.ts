@@ -48,6 +48,24 @@ describe('rankOffers', () => {
   })
 })
 
+describe('rankOffers with several amounts', () => {
+  const long = offer({ id: 'l', name: 'CDB Long', rate: 120, maturity: '2031-10-27' })
+  const ranking = rankOffers([long], [150_000, 75_000], flat, TODAY)
+  const [r] = ranking.all
+
+  it('simulates each amount, smallest first, and ranks by the smallest', () => {
+    expect(ranking.amounts).toEqual([75_000, 150_000])
+    expect(r.scenarios.map((s) => s.amount)).toEqual([75_000, 150_000])
+    expect(r.sim.amount).toBe(75_000)
+    expect(r.scenarios[1].netProfit).toBeCloseTo(r.scenarios[0].netProfit * 2, 0)
+  })
+
+  it('warns when the largest amount grows past the FGC limit', () => {
+    expect(r.scenarios[1].net).toBeGreaterThan(250_000)
+    expect(r.warnings.join()).toMatch(/Investing R\$\s150\.000: .* above the FGC limit/)
+  })
+})
+
 describe('breakEvens', () => {
   it('pairs the Prefixado with the nearest IPCA+ bond', () => {
     const [e] = breakEvens(tesouro, flat, TODAY)

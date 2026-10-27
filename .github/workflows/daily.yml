@@ -29,7 +29,7 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REPORT_TO: ${{ secrets.REPORT_TO }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          INVEST_AMOUNT: ${{ vars.INVEST_AMOUNT || '10000' }}
+          INVEST_AMOUNTS: ${{ vars.INVEST_AMOUNTS || '75000,100000,150000' }}
       - uses: actions/upload-artifact@v4
         if: inputs.dry_run
         with:

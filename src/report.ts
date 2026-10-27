@@ -24,8 +24,9 @@ const skipWeb = args.has('--no-web')
 /** Today in Brazil, YYYY-MM-DD, whatever timezone the runner is in */
 const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
 const today = new Date(`${date}T00:00:00Z`)
-const amount = Number(process.env.INVEST_AMOUNT || 10_000)
-if (!Number.isFinite(amount) || amount <= 0) throw new Error('INVEST_AMOUNT must be a positive number of reais')
+// Each offer is simulated for every amount, e.g. INVEST_AMOUNTS=75000,100000,150000
+const amounts = (process.env.INVEST_AMOUNTS || process.env.INVEST_AMOUNT || '75000,100000,150000').split(',').map(Number)
+if (!amounts.every((n) => Number.isFinite(n) && n > 0)) throw new Error('INVEST_AMOUNTS must be positive numbers of reais, separated by commas')
 
 const [benchmarks, tesouro] = await Promise.all([fetchBenchmarks(), fetchTesouro()])
 console.log(`CDI ${benchmarks.cdi}% (${benchmarks.date}), ${tesouro.length} Tesouro bonds`)
@@ -45,7 +46,7 @@ else {
 }
 
 const offers: Offer[] = [...tesouro, ...web.offers]
-const ranking = rankOffers(offers, amount, benchmarks, today)
+const ranking = rankOffers(offers, amounts, benchmarks, today)
 const current = snapshot(date, benchmarks, offers)
 
 const database = process.env.DATABASE_URL ? await connect(process.env.DATABASE_URL) : undefined
