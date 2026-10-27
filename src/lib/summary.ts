@@ -59,11 +59,14 @@ export function numbersCheck(summary: string, facts: SummaryFacts): { ok: boolea
   return { ok: unknown.length === 0, unknown }
 }
 
+/** A pick without its profit per amount, which the email already shows next to it */
+const brief = (pick: string) => pick.replace(/, net profit .*$/, '')
+
 export function templateSummary(facts: SummaryFacts): string {
   const lines = [`CDI is at ${facts.cdi} and inflation was ${facts.ipca12m}.`]
-  if (facts.bestCdb) lines.push(`Best CDB: ${facts.bestCdb}.`)
-  if (facts.best && facts.best !== facts.bestCdb) lines.push(`Best of everything: ${facts.best}.`)
-  if (facts.reserve) lines.push(`For money you may need any day: ${facts.reserve}.`)
+  if (facts.bestCdb) lines.push(`Best CDB: ${brief(facts.bestCdb)}.`)
+  if (facts.best && facts.best !== facts.bestCdb) lines.push(`Best of everything: ${brief(facts.best)}.`)
+  if (facts.reserve) lines.push(`For money you may need any day: ${brief(facts.reserve)}.`)
   if (facts.changes.length) lines.push(`Since the last report: ${facts.changes.join('; ')}.`)
   return lines.join(' ')
 }

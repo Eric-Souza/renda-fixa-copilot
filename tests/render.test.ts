@@ -74,7 +74,7 @@ describe('render', () => {
     expect(text).toContain('Best for up to 1 year:')
     expect(text).toContain('- CDB <A> (120% do CDI)')
     expect(text).toContain('Invest through: XP.')
-    expect(renderHtml(report())).toContain('Invest through XP')
+    expect(renderHtml(report())).toMatch(/Invest through <b[^>]*>XP<\/b>/)
   })
 
   it('shows the profit for each amount', () => {
