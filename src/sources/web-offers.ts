@@ -25,6 +25,8 @@ export interface WebSearch {
   answer: string
   pages: WebPage[]
   model?: string
+  /** Why the model stopped: "stop" when it finished, "length" when it ran out of output tokens */
+  finishReason?: string
 }
 
 const extractedSchema = z.object({
@@ -73,6 +75,7 @@ const groqResponseSchema = z.object({
   choices: z
     .array(
       z.object({
+        finish_reason: z.string().nullish(),
         message: z.object({
           content: z.string().nullish(),
           executed_tools: z
@@ -99,7 +102,7 @@ export function parseGroqSearch(json: unknown): WebSearch {
     const issue = parsed.error.issues[0]
     throw new SourceError('Web search', `unexpected response from Groq (${issue.path.join('.')}: ${issue.message})`)
   }
-  const message = parsed.data.choices[0].message
+  const { message, finish_reason } = parsed.data.choices[0]
   const pages = new Map<string, WebPage>()
   for (const tool of message.executed_tools ?? []) {
     for (const r of tool.search_results?.results ?? []) {
@@ -112,19 +115,24 @@ export function parseGroqSearch(json: unknown): WebSearch {
       else pages.set(key, { url: r.url, title: r.title ?? r.url, content })
     }
   }
-  return { answer: message.content ?? '', pages: [...pages.values()] }
+  return { answer: message.content ?? '', pages: [...pages.values()], finishReason: finish_reason ?? undefined }
 }
 
-/** The offers in the model's answer; it is asked for bare JSON but may wrap it in a code fence */
+/**
+ * The offers in the model's answer; it is asked for bare JSON but may wrap it in a code fence.
+ * An answer cut off mid-list still keeps the offers before the cut, since one search uses most
+ * of the day's tokens and searching again would leave none for a second try.
+ */
 export function parseAnswer(answer: string): { offers: ExtractedOffer[]; invalid: number } {
   const start = answer.indexOf('[')
+  if (start < 0) throw new SourceError('Web search', 'the answer had no list of offers')
   const end = answer.lastIndexOf(']')
-  if (start < 0 || end < start) throw new SourceError('Web search', 'the answer had no list of offers')
   let items: unknown
   try {
     items = JSON.parse(answer.slice(start, end + 1))
   } catch {
-    throw new SourceError('Web search', 'the list of offers was not valid JSON')
+    items = parseTruncated(answer.slice(start))
+    if (!items) throw new SourceError('Web search', 'the list of offers was not valid JSON')
   }
   if (!Array.isArray(items)) throw new SourceError('Web search', 'the answer had no list of offers')
   const offers: ExtractedOffer[] = []
@@ -133,6 +141,19 @@ export function parseAnswer(answer: string): { offers: ExtractedOffer[]; invalid
     if (parsed.success) offers.push(parsed.data)
   }
   return { offers, invalid: items.length - offers.length }
+}
+
+/** The complete items of a list cut off partway, or null when not even one is whole */
+function parseTruncated(text: string): unknown[] | null {
+  for (let end = text.lastIndexOf('}'); end > 0; end = text.lastIndexOf('}', end - 1)) {
+    try {
+      const items = JSON.parse(`${text.slice(0, end + 1)}]`)
+      if (Array.isArray(items) && items.length) return items
+    } catch {
+      // A "}" inside a quote, or one closing a nested object; try the one before
+    }
+  }
+  return null
 }
 
 class RateLimited extends SourceError {}
@@ -159,7 +180,10 @@ async function searchWith(model: string, today: Date, key: string): Promise<WebS
     const body = (await res.text()).match(/"message"\s*:\s*"([^"]+)"/)?.[1]
     throw new RateLimited('Web search', `Groq's free-tier limit was hit${body ? `: ${body}` : ''}`)
   }
-  if (!res.ok) throw new SourceError('Web search', `HTTP ${res.status}`)
+  if (!res.ok) {
+    const body = (await res.text()).match(/"message"\s*:\s*"([^"]+)"/)?.[1]
+    throw new SourceError('Web search', `HTTP ${res.status}${body ? `: ${body}` : ''}`)
+  }
   const search = parseGroqSearch(await res.json())
   if (!search.pages.length) throw new SourceError('Web search', 'the search returned no pages')
   return { ...search, model }
@@ -268,6 +292,9 @@ export interface WebOffers {
 async function searchForOffers(today: Date, attempts = 2): Promise<{ search: WebSearch } & ReturnType<typeof parseAnswer>> {
   for (let attempt = 1; ; attempt++) {
     const search = await searchWeb(today)
+    if (search.finishReason && search.finishReason !== 'stop') {
+      console.warn(`${search.model}: the answer ended with finish_reason "${search.finishReason}" after ${search.answer.length} characters`)
+    }
     try {
       return { search, ...parseAnswer(search.answer) }
     } catch (error) {

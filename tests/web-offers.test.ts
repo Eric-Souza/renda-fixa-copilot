@@ -10,6 +10,7 @@ describe('parseGroqSearch', () => {
     const search = parseGroqSearch({
       choices: [
         {
+          finish_reason: 'length',
           message: {
             content: 'Found some offers',
             executed_tools: [
@@ -21,6 +22,7 @@ describe('parseGroqSearch', () => {
       ],
     })
     expect(search.answer).toBe('Found some offers')
+    expect(search.finishReason).toBe('length')
     expect(search.pages).toHaveLength(1)
     expect(search.pages[0].content).toContain('110% do CDI')
     expect(search.pages[0].content).toContain('95% do CDI')
@@ -98,6 +100,13 @@ describe('parseAnswer', () => {
     expect(offers).toHaveLength(1)
     expect(offers[0].liquidity).toBe('maturity')
     expect(invalid).toBe(1)
+  })
+
+  it('keeps the complete offers of an answer cut off mid-list', () => {
+    const whole = JSON.stringify([offer, { ...offer, issuer: 'Y' }, { ...offer, issuer: 'Z' }])
+    const { offers } = parseAnswer(whole.slice(0, whole.lastIndexOf('"Z"') + 5))
+    expect(offers.map((o) => o.issuer)).toEqual(['X', 'Y'])
+    expect(() => parseAnswer('[{"product":"CDB","iss')).toThrow(/not valid JSON/)
   })
 
   it('fails when there is no list', () => {
