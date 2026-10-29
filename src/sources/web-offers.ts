@@ -57,14 +57,15 @@ export function searchPrompt(today: Date): string {
       'rankings diários de CDB (Meelion, Investidor10, Yubb) e as colunas "Renda Fixa Hoje" (InfoMoney). ' +
       'Abra no máximo 4 páginas, as que listam mais ofertas.',
     '',
-    'Responda só com um array JSON, sem texto antes ou depois, com até 25 ofertas específicas (pelo menos 15 CDBs, se houver) que aparecem nas páginas que você abriu:',
+    'Responda só com um array JSON compacto (sem espaços nem quebras de linha), sem texto antes ou depois, com até 18 ofertas ' +
+      'específicas (pelo menos 15 CDBs, se houver) que aparecem nas páginas que você abriu. Omita os campos que seriam null:',
     '[{"product":"CDB|LCI|LCA|LC|RDB","issuer":"banco emissor","indexer":"CDI|CDI+|PRE|IPCA+",' +
       '"rate":120,"termMonths":24 ou null,"maturity":"AAAA-MM-DD" ou "AAAA-MM" ou null,"liquidity":"daily|maturity",' +
       '"minimum":1000 ou null,"platform":"app ou corretora onde investir (Nubank, Inter, PicPay, XP, BTG...)" ou null,' +
       '"sourceUrl":"URL da página","quote":"trecho copiado da página que mostra a taxa"}]',
     '',
     'Regras: rate é o número da taxa (120 para 120% do CDI, 15.05 para 15,05% a.a., 8.15 para IPCA + 8,15%). ' +
-      'quote deve ser copiado exatamente da página, sem os marcadores de linha "L12:", e conter a taxa. ' +
+      'quote deve ser um trecho curto (até 80 caracteres) copiado exatamente da página, sem os marcadores de linha "L12:", e conter a taxa. ' +
       'Não invente nada e não use ofertas que não estão nas páginas.',
   ].join('\n')
 }
