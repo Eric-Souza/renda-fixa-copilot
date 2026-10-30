@@ -5,8 +5,8 @@ import { flat, offer, TODAY } from './helpers'
 
 function report(overrides: Partial<Report> = {}): Report {
   const offers = [
-    offer({ id: 'a', name: 'CDB <A>', rate: 120, maturity: '2027-06-01', source: { kind: 'web', url: 'https://x.com/?a=1&b=2', quote: '120% do CDI' } }),
-    offer({ id: 'c', name: 'CDB C', rate: 102, liquidity: 'daily', maturity: '2030-01-01' }),
+    offer({ id: 'a', name: 'CDB <A>', rate: 120, maturity: '2029-06-01', source: { kind: 'web', url: 'https://x.com/?a=1&b=2', quote: '120% do CDI' } }),
+    offer({ id: 'c', name: 'CDB C', rate: 102, maturity: '2032-01-01' }),
   ]
   return {
     date: '2026-10-27',
@@ -35,9 +35,9 @@ describe('render', () => {
   it('leads with the CDBs, then compares with everything else', () => {
     const html = renderHtml(report())
     expect(html.indexOf('Best CDBs')).toBeLessThan(html.indexOf('Compared with Tesouro, LCI and LCA'))
-    expect(html).toContain('CDB you can withdraw any day')
-    expect(html).toContain('CDBs for up to 1 year')
-    expect(renderText(report())).toContain('CDBs for up to 1 year:')
+    expect(html).not.toContain('Money you may need any day')
+    expect(html).toContain('CDBs for 2 to 3 years')
+    expect(renderText(report())).toContain('CDBs for 2 to 3 years:')
   })
 
   it('says when there are no CDBs', () => {
@@ -54,9 +54,8 @@ describe('render', () => {
     expect(html).not.toContain('<A>')
   })
 
-  it('includes the reserve, the changes, the source quotes and the disclaimer', () => {
+  it('includes the changes, the source quotes and the disclaimer', () => {
     const html = renderHtml(report())
-    expect(html).toContain('Money you may need any day')
     expect(html).toContain('CDI went from 13.65% to 14.00% a year')
     expect(html).toContain('"120% do CDI"')
     expect(html).toContain('1 more were left out')
@@ -71,19 +70,25 @@ describe('render', () => {
 
   it('has a plain-text version with the picks', () => {
     const text = renderText(report())
-    expect(text).toContain('Best for up to 1 year:')
+    expect(text).toContain('Best for 1 to 3 years:')
     expect(text).toContain('- CDB <A> (120% do CDI)')
     expect(text).toContain('Invest through: XP.')
+    // CDB <A> runs to 2029-06-01: past 2 years, short of 5
+    expect(text).toMatch(/CDB <A> .*Net profit: 2 years \+R\$\s[\d.]+ on R\$\s10\.000; at maturity \+R\$/)
+    expect(text).not.toMatch(/CDB <A> .*5 years/)
     expect(renderHtml(report())).toMatch(/Invest through <b[^>]*>XP<\/b>/)
   })
 
-  it('shows the profit for each amount', () => {
+  it('shows the profit for each amount and term', () => {
     const r = report()
     r.ranking = rankOffers(r.ranking.all.map((x) => x.offer), [150_000, 75_000, 100_000], flat, TODAY)
     const html = renderHtml(r)
-    expect(html.indexOf('Profit on R$ 75k')).toBeLessThan(html.indexOf('Profit on R$ 100k'))
-    expect(html).toContain('Profit on R$ 150k')
+    expect(html.indexOf('On R$ 75k')).toBeLessThan(html.indexOf('On R$ 100k'))
+    expect(html).toContain('On R$ 150k')
+    // CDB C runs to 2032: 2 and 5 years, then maturity
+    expect(html.indexOf('>2 years<')).toBeLessThan(html.indexOf('>5 years<'))
+    expect(html.indexOf('>5 years<')).toBeLessThan(html.indexOf('>At maturity<', html.indexOf('>5 years<')))
     expect(html).toMatch(/Simulating R\$\s75\.000, R\$\s100\.000, R\$\s150\.000/)
-    expect(renderText(r)).toMatch(/Net profit: \+R\$\s[\d.]+ on R\$\s75\.000, \+R\$\s[\d.]+ on R\$\s100\.000/)
+    expect(renderText(r)).toMatch(/Net profit: 2 years \+R\$\s[\d.]+ on R\$\s75\.000, \+R\$\s[\d.]+ on R\$\s100\.000/)
   })
 })

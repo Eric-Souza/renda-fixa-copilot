@@ -89,7 +89,6 @@ function badges(x: Ranked): string {
   return (
     pill(x.offer.product === 'TESOURO' ? 'Tesouro Direto' : x.offer.product, fg, bg) +
     pill(INDEXER_LABELS[x.offer.indexer] ?? x.offer.indexer, '#44504a', '#eef1ef') +
-    (x.offer.liquidity === 'daily' ? pill('Withdraw any day', '#44504a', '#eef1ef') : '') +
     guarantee
   )
 }
@@ -132,12 +131,29 @@ const warningBoxes = (x: Ranked) =>
     .map(warningBox)
     .join('') + sourceLine(x)
 
+/** Net profit for each term and amount: 2, 5 and 7 years where the offer runs that long, then the end */
+function profitRows(x: Ranked): { label: string; scenarios: Ranked['scenarios'] }[] {
+  const end = { days: x.sim.days, label: 'At maturity', scenarios: x.scenarios }
+  const holds = x.holds.map((h) => ({ days: h.years * 365, label: `${h.years} years`, scenarios: h.scenarios }))
+  return [...holds, end].sort((a, b) => a.days - b.days)
+}
+
+function profitTable(x: Ranked): string {
+  const cell = (s: string, style = '') => `<td style="padding:3px 8px 3px 0;white-space:nowrap;${style}">${s}</td>`
+  const label = `color:${SOFT};font-size:11px;text-transform:uppercase;letter-spacing:.4px;`
+  const head = cell('Profit', label) + x.scenarios.map((s) => cell(`On ${short(s.amount)}`, label)).join('')
+  const rows = profitRows(x).map(
+    (r) =>
+      `<tr>${cell(esc(r.label), `color:${MUTED};font-size:13px;`)}` +
+      r.scenarios.map((s) => cell(`+${brl(s.netProfit)}`, `color:${GOOD};font-size:13px;font-weight:700;`)).join('') +
+      `</tr>`,
+  )
+  return `<table class="profits" role="presentation" cellspacing="0" cellpadding="0" style="margin-top:10px;"><tr>${head}</tr>${rows.join('')}</table>`
+}
+
 /** One offer: name, badges, the numbers, then why it was picked and what to watch */
 function pickCard(x: Ranked, rank?: number): string {
   const vs = x.sim.vsCdi
-  const profits = x.scenarios
-    .map((s) => stat(`Profit on ${short(s.amount)}`, `<span style="color:${GOOD};">+${brl(s.netProfit)}</span>`, `${brl(s.net)} at the end`))
-    .join('')
   const first = rank === 1
   const number = rank
     ? `<td width="38" style="vertical-align:top;"><div style="width:28px;height:28px;line-height:28px;border-radius:14px;` +
@@ -155,7 +171,7 @@ function pickCard(x: Ranked, rank?: number): string {
     stat('Rate', esc(rateLabel(x.offer))) +
     stat('Until', br(x.sim.until), term(x.sim.days)) +
     stat('Net a year', pct(x.sim.netAnnual), `<span style="color:${vs >= 0 ? GOOD : BAD};">${signed(vs)} vs CDI</span>`) +
-    `<div>${profits}</div>` +
+    profitTable(x) +
     `</div>` +
     `<div style="color:${MUTED};font-size:12px;line-height:1.5;margin-top:6px;">${x.reasons.map(esc).join(' · ')}</div>` +
     warningBoxes(x) +
@@ -234,27 +250,19 @@ export function renderHtml(r: Report): string {
 
   if (k.cdbs.best) rows.push(hero(k.cdbs.best))
 
-  const hasCdbs = Boolean(k.cdbs.reserve || k.cdbs.buckets.some((bucket) => bucket.picks.length))
-  const cdbCount = k.all.filter((x) => x.offer.product === 'CDB').length
+  const hasCdbs = k.cdbs.buckets.some((bucket) => bucket.picks.length)
   let cdbBody = hasCdbs
     ? ''
     : p(r.web.error ? 'No CDBs today: the web search failed (see below).' : 'The search found no CDBs today.', `color:${WARN};`)
-  if (k.cdbs.reserve) cdbBody += h3('CDB you can withdraw any day') + cards([k.cdbs.reserve], false)
   for (const bucket of k.cdbs.buckets) {
     if (bucket.picks.length) cdbBody += h3(`CDBs for ${bucket.label.toLowerCase()}`) + cards(bucket.picks)
   }
   const cdbIntro = hasCdbs
-    ? `${cdbCount} CDBs found today, ranked by net return after income tax. Each is covered by the FGC up to ${brl(FGC_LIMIT)} per CPF per institution.`
+    ? `${k.cdbsConsidered} CDBs found today that run for 2 years or more, ranked by net return after income tax, with the best prefixed and post-fixed in each term. Each is covered by the FGC up to ${brl(FGC_LIMIT)} per CPF per institution.`
     : ''
   rows.push(section('Best CDBs', cdbBody, cdbIntro))
 
   let compareBody = ''
-  if (k.reserve) {
-    compareBody +=
-      h3('Money you may need any day') +
-      p('Compared over 1 year; you can withdraw any business day.', `color:${MUTED};font-size:13px;margin-top:-4px;`) +
-      cards([k.reserve], false)
-  }
   for (const bucket of k.buckets) {
     if (bucket.picks.length) compareBody += h3(`Best for ${bucket.label.toLowerCase()}`) + cards(bucket.picks)
   }
@@ -290,7 +298,10 @@ export function renderHtml(r: Report): string {
   const method = [
     `Floating rates are projected with the Focus survey (${esc(br(b.focus.date))}). Selic at year end: ${esc(focusLine(b))}.`,
     esc(TAX_NOTE),
-    'Tesouro Direto: B3 custody of 0.20% a year is deducted (Tesouro Selic is free on the first R$ 10.000). Bonds other than Tesouro Selic are held to maturity.',
+    'Profit after 2, 5 and 7 years is what the investment is worth by then, after the tax due at that point; a term is left out when the offer matures before it. ' +
+      'CDBs, LCIs and LCAs pay only at maturity, and Tesouro sold early is at market price.',
+    'Only long-term investments are listed: nothing you can withdraw any day, and CDBs that run for 2 years or more.',
+    'Tesouro Direto: B3 custody of 0.20% a year is deducted. Bonds are held to maturity.',
     `FGC covers CDB, LCI, LCA, LC and RDB up to ${brl(FGC_LIMIT)} per CPF per institution, interest included, with R$ 1.000.000 every 4 years.`,
     'Web offers are read by a model from search results and kept only when the page text states the rate. Rates change during the day: confirm at the broker.',
     `This is an automated comparison, not financial advice.${r.summary.byModel ? '' : ' The summary above is a template today.'}`,
@@ -307,6 +318,7 @@ export function renderHtml(r: Report): string {
     `<style>@media only screen and (max-width:600px){` +
     `.pad{padding:18px 16px!important}` +
     `.tile{display:block!important;width:100%!important;margin-right:0!important}` +
+    `.profits td{font-size:11px!important;padding-right:5px!important}` +
     `}</style>`
 
   return (
@@ -323,7 +335,9 @@ function textRows(picks: Ranked[]): string[] {
   return picks.map(
     (x) =>
       `- ${x.offer.name} (${rateLabel(x.offer)}), until ${br(x.sim.until)}: ${pct(x.sim.netAnnual)} a year net, ` +
-      `${signed(x.sim.vsCdi)} vs CDI. Net profit: ${x.scenarios.map((s) => `+${brl(s.netProfit)} on ${brl(s.amount)}`).join(', ')}. Invest through: ${x.offer.platform}. ${x.guarantee.label}.` +
+      `${signed(x.sim.vsCdi)} vs CDI. Net profit: ${profitRows(x)
+        .map((r) => `${r.label.toLowerCase()} ${r.scenarios.map((s) => `+${brl(s.netProfit)} on ${brl(s.amount)}`).join(', ')}`)
+        .join('; ')}. Invest through: ${x.offer.platform}. ${x.guarantee.label}.` +
       (x.warnings.length ? ` Note: ${x.warnings.join('; ')}.` : ''),
   )
 }
@@ -337,13 +351,11 @@ export function renderText(r: Report): string {
     r.summary.text,
   ]
   lines.push('', 'BEST CDBS')
-  if (k.cdbs.reserve) lines.push('', 'CDB you can withdraw any day (over 1 year):', ...textRows([k.cdbs.reserve]))
   for (const bucket of k.cdbs.buckets) {
     if (bucket.picks.length) lines.push('', `CDBs for ${bucket.label.toLowerCase()}:`, ...textRows(bucket.picks))
   }
-  if (!k.cdbs.reserve && !k.cdbs.buckets.some((bucket) => bucket.picks.length)) lines.push('No CDBs found today.')
+  if (!k.cdbs.buckets.some((bucket) => bucket.picks.length)) lines.push('No CDBs found today.')
   lines.push('', 'COMPARED WITH TESOURO, LCI AND LCA')
-  if (k.reserve) lines.push('', 'Money you may need any day (over 1 year):', ...textRows([k.reserve]))
   for (const bucket of k.buckets) {
     if (bucket.picks.length) lines.push('', `Best for ${bucket.label.toLowerCase()}:`, ...textRows(bucket.picks))
   }

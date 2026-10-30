@@ -8,11 +8,13 @@ Runs on a GitHub Actions cron, every weekday at 08:00 Brasília time.
 
 ## What's in the email
 
-- **Best CDBs** come first: the top 5 CDBs for up to 1 year, 1 to 3 years, 3 to 6 years and over 6 years, plus the best CDB with daily liquidity. Each pick shows:
-  - where to invest, the rate, the maturity, and the net profit for each amount (R$ 75k, 100k and 150k by default)
+Only long-term investments are recommended: nothing with daily liquidity, and only CDBs that run for 2 years or more. LCIs, LCAs and Tesouro can have any term.
+
+- **Best CDBs** come first: the top 5 CDBs for 2 to 3 years, 3 to 6 years and over 6 years, always including the best prefixed, post-fixed and IPCA+ CDB found for each term. Each pick shows:
+  - where to invest, the rate, the maturity, and the net profit for each amount (R$ 75k, 100k and 150k by default) after 2, 5 and 7 years and at maturity
   - its net return a year, compared with a CDB at 100% of CDI
   - the FGC guarantee, why it was picked, and what to watch (FGC limit, minimum investment)
-- **Compared with Tesouro, LCI and LCA:** the top 3 of everything for the same terms, and the best place for money you may need any day (Tesouro Selic, or a CDB with daily liquidity)
+- **Compared with Tesouro, LCI and LCA:** the top 3 of everything for up to 1 year, 1 to 3 years, 3 to 6 years and over 6 years
 - **Fixed rate or inflation-linked?** the inflation at which a Prefixado and an IPCA+ bond pay the same, against the Focus survey's forecast
 - **Since the last report:** rate moves, plus new offers and offers that went away (needs a database)
 - **A short summary** written by a model from the computed numbers
@@ -86,7 +88,7 @@ src/
   lib/
     simulate.ts        # net-of-tax simulation, custody fee, CDI comparison
     benchmarks.ts      # projected CDI and IPCA by year
-    rank.ts            # term buckets, reserve pick, reasons, break-even inflation
+    rank.ts            # term buckets, long-term filter, reasons, break-even inflation
     fgc.ts             # FGC and government guarantee
     summary.ts         # model summary with a numbers check and a template fallback
     changes.ts         # what moved since the last report

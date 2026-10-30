@@ -12,9 +12,7 @@ export interface SummaryFacts {
   cdi: string
   ipca12m: string
   bestCdb?: string
-  cdbReserve?: string
   bestCdbByTerm: string[]
-  reserve?: string
   best?: string
   bestByTerm: string[]
   breakEvens: string[]
@@ -29,9 +27,7 @@ export function summaryFacts(ranking: Ranking, b: Benchmarks, changes: string[])
     cdi: `${b.cdi.toFixed(2)}% a year`,
     ipca12m: `${b.ipca12m.toFixed(2)}% over the last 12 months`,
     bestCdb: ranking.cdbs.best && describe(ranking.cdbs.best),
-    cdbReserve: ranking.cdbs.reserve && describe(ranking.cdbs.reserve),
     bestCdbByTerm: ranking.cdbs.buckets.filter((k) => k.picks.length).map((k) => `${k.label}: ${describe(k.picks[0])}`),
-    reserve: ranking.reserve && describe(ranking.reserve),
     best: ranking.best && describe(ranking.best),
     bestByTerm: ranking.buckets.filter((k) => k.picks.length).map((k) => `${k.label}: ${describe(k.picks[0])}`),
     breakEvens: ranking.breakEvens.map(
@@ -66,16 +62,15 @@ export function templateSummary(facts: SummaryFacts): string {
   const lines = [`CDI is at ${facts.cdi} and inflation was ${facts.ipca12m}.`]
   if (facts.bestCdb) lines.push(`Best CDB: ${brief(facts.bestCdb)}.`)
   if (facts.best && facts.best !== facts.bestCdb) lines.push(`Best of everything: ${brief(facts.best)}.`)
-  if (facts.reserve) lines.push(`For money you may need any day: ${brief(facts.reserve)}.`)
   if (facts.changes.length) lines.push(`Since the last report: ${facts.changes.join('; ')}.`)
   return lines.join(' ')
 }
 
 const SUMMARY_SYSTEM =
   'You write the opening paragraph of a daily email about Brazilian fixed income for one investor. ' +
-  'The investor mostly buys CDBs. You get facts computed from live data. In 3 to 5 plain sentences, ' +
+  'The investor mostly buys CDBs and only invests for the long term. You get facts computed from live data. In 3 to 5 plain sentences, ' +
   'start with the best CDB and which term pays best for CDBs now, then say whether Tesouro, an LCI or ' +
-  'an LCA beats it, where to put money that may be needed any day, which app or broker to invest ' +
+  'an LCA beats it, which app or broker to invest ' +
   'through, and what changed since the last report if anything did. Copy every number exactly as it appears in the facts; never round, convert or ' +
   'compute a new number. Do not use hype, and do not promise returns. English, plain text only: no markdown, no heading.'
 

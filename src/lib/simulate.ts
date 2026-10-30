@@ -81,11 +81,20 @@ export function simulate(
   amount: number,
   b: Benchmarks,
   today: Date,
-  { horizonDays }: { horizonDays?: number } = {},
+  {
+    horizonDays,
+    holdDays,
+  }: {
+    /** For a daily-liquidity offer, the days until the money is taken out */
+    horizonDays?: number
+    /** For any offer, the days it is held: what it is worth by then, even if it pays only at maturity */
+    holdDays?: number
+  } = {},
 ): Simulation {
   const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
   let end = new Date(`${offer.maturity}T00:00:00Z`)
-  if (horizonDays && offer.liquidity === 'daily') end = new Date(Math.min(end.getTime(), start.getTime() + horizonDays * DAY))
+  const hold = holdDays ?? (offer.liquidity === 'daily' ? horizonDays : undefined)
+  if (hold) end = new Date(Math.min(end.getTime(), start.getTime() + hold * DAY))
   const days = Math.round((end.getTime() - start.getTime()) / DAY)
   const years = days / 365
 

@@ -59,6 +59,13 @@ describe('simulate', () => {
     expect(s.taxedEquivalent).toBeUndefined()
   })
 
+  it('values any offer, not only daily-liquidity ones, after the days it is held', () => {
+    const s = simulate(offer({ maturity: '2033-10-27' }), 10_000, flat, TODAY, { holdDays: 2 * 365 })
+    expect(s.days).toBe(730)
+    expect(s.until).toBe('2028-10-26')
+    expect(s.incomeTax).toBeCloseTo((s.gross - 10_000) * 0.15, 6)
+  })
+
   it('pays more than CDI at 110%', () => {
     expect(simulate(offer({ rate: 110 }), 10_000, flat, TODAY).vsCdi).toBeGreaterThan(1)
   })

@@ -51,9 +51,10 @@ export function searchPrompt(today: Date): string {
   const month = `${MONTHS[today.getUTCMonth()]} de ${today.getUTCFullYear()}`
   return [
     `Hoje é ${day}. Pesquise na web as ofertas de CDB com as maiores taxas disponíveis hoje ou em ${month} ` +
-      'em bancos e corretoras brasileiras. Procure CDBs de todos os prazos (até 1 ano, 1 a 3 anos, mais de 3 anos), ' +
-      'dos três tipos (pós-fixados em % do CDI, prefixados e IPCA+) e também CDBs com liquidez diária. ' +
-      'Inclua algumas LCI e LCA se aparecerem, mas a maioria das ofertas deve ser de CDB. Bons pontos de partida são ' +
+      'em bancos e corretoras brasileiras. Procure só CDBs com vencimento em 2 anos ou mais (2 a 3 anos, 3 a 5 anos, ' +
+      'mais de 5 anos), tanto prefixados (taxa fixa em % a.a.) quanto pós-fixados (% do CDI), e também IPCA+. ' +
+      'Inclua pelo menos 5 CDBs prefixados, se houver. Inclua algumas LCI e LCA de qualquer prazo se aparecerem, mas a ' +
+      'maioria das ofertas deve ser de CDB. Não inclua nada com liquidez diária. Bons pontos de partida são ' +
       'rankings diários de CDB (Meelion, Investidor10, Yubb) e as colunas "Renda Fixa Hoje" (InfoMoney). ' +
       'Abra no máximo 4 páginas, as que listam mais ofertas.',
     '',
