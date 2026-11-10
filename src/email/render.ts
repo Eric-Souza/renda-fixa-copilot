@@ -1,4 +1,4 @@
-// The daily email, as HTML with inline styles (email clients drop stylesheets) and as plain text.
+// The monthly email, as HTML with inline styles (email clients drop stylesheets) and as plain text.
 
 import type { Benchmarks } from '../lib/benchmarks'
 import { FGC_LIMIT } from '../lib/fgc'

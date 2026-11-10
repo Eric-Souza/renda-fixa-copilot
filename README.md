@@ -1,8 +1,8 @@
 # Renda Fixa Copilot
 
-A daily email about the best Brazilian CDBs, compared with LCIs, LCAs and Tesouro Direto bonds (Selic, Prefixado, IPCA+). Every offer is simulated for the same amount, net of income tax and fees. Each comes with its FGC or government guarantee, its term, and the app or broker to invest through (Nubank, Inter, PicPay, XP...). The email then suggests where to put money for each time horizon.
+A monthly email about the best Brazilian CDBs, compared with LCIs, LCAs and Tesouro Direto bonds (Selic, Prefixado, IPCA+). Every offer is simulated for the same amount, net of income tax and fees. Each comes with its FGC or government guarantee, its term, and the app or broker to invest through (Nubank, Inter, PicPay, XP...). The email then suggests where to put money for each time horizon.
 
-Runs on a GitHub Actions cron, every weekday at 08:00 Brasília time.
+Runs on a GitHub Actions cron, on the 1st of each month at 08:00 Brasília time.
 
 > **Status:** Tesouro Direto, Banco Central rates and the simulations run on live data. The web search for bank offers and the email need a Groq key and a Gmail app password (see [Setup](#setup)).
 
@@ -62,7 +62,7 @@ npm run report               # sends the email
 | `INVEST_AMOUNTS` | Amounts to simulate, in reais, separated by commas (default 75000,100000,150000) |
 | `DATABASE_URL` | Optional Postgres (Neon) for history; run `npm run db:migrate` once |
 
-For the daily run, add the same names as repository secrets (`gh secret set GROQ_API_KEY`, etc.). `INVEST_AMOUNTS` can be a repository variable. Use **Actions → Daily report → Run workflow** to run it by hand; tick *dry run* to get the HTML as an artifact without sending it.
+For the monthly run, add the same names as repository secrets (`gh secret set GROQ_API_KEY`, etc.). `INVEST_AMOUNTS` can be a repository variable. Use **Actions → Monthly report → Run workflow** to run it by hand; tick *dry run* to get the HTML as an artifact without sending it.
 
 ## Stack
 
@@ -80,7 +80,7 @@ For the daily run, add the same names as repository secrets (`gh secret set GROQ
 
 ```
 src/
-  report.ts            # the daily run (CLI)
+  report.ts            # the monthly run (CLI)
   sources/
     bcb.ts             # CDI, IPCA, Focus survey
     tesouro.ts         # Tesouro Direto bonds on sale

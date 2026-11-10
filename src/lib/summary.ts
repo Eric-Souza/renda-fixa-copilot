@@ -67,7 +67,7 @@ export function templateSummary(facts: SummaryFacts): string {
 }
 
 const SUMMARY_SYSTEM =
-  'You write the opening paragraph of a daily email about Brazilian fixed income for one investor. ' +
+  'You write the opening paragraph of a monthly email about Brazilian fixed income for one investor. ' +
   'The investor mostly buys CDBs and only invests for the long term. You get facts computed from live data. In 3 to 5 plain sentences, ' +
   'start with the best CDB and which term pays best for CDBs now, then say whether Tesouro, an LCI or ' +
   'an LCA beats it, which app or broker to invest ' +

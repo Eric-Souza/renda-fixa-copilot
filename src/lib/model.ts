@@ -1,4 +1,4 @@
-// Which models run. Both need GROQ_API_KEY by default; Groq's free tier covers a daily run.
+// Which models run. Both need GROQ_API_KEY by default; Groq's free tier covers a run easily.
 //   SEARCH_MODEL  searches the web for bank offers, with Groq's built-in browser_search tool
 //   AI_PROVIDER   writes the summary: groq or google
 //   AI_MODEL      overrides that provider's default model

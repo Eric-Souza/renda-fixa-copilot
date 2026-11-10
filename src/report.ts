@@ -1,4 +1,4 @@
-// The daily run: fetch rates, find bank offers, rank them, email the report and keep a snapshot.
+// The monthly run: fetch rates, find bank offers, rank them, email the report and keep a snapshot.
 //   npm run report               send the email
 //   npm run report -- --dry-run  write out/report.html and out/report.txt instead, save nothing
 //   --no-web                     skip the web search (Tesouro Direto only)
